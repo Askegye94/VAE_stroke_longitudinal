@@ -2,37 +2,19 @@
 """
 Created on Thu Apr 28 09:01:27 2022
 
-
-
 - loading cleaned and properly segmented data
 - creating a model 
 
 - objectives
 explore whether 18channel can be learned. 
 
-
-## COMMENT 02-05-2022 
-
 0 GROUP IS STROKE
 1 GROUP IS HEALTHY
 
-
-
-
-@author: Michiel Punt 28 -04-2022
 """
 import tensorflow as tf
-
-# # Enable eager execution explicitly
-# tf.compat.v1.enable_eager_execution()
-
-# # Check if eager execution is enabled
-# if not tf.executing_eagerly():
-#     raise RuntimeError("Eager execution is not enabled. Ensure you're using TensorFlow 2.x")
-
 # Check TensorFlow version
 print("TensorFlow version:", tf.__version__)
-
 # Ensure eager execution is enabled (should be by default in TF 2.x)
 print("Eager execution enabled by default:", tf.executing_eagerly())
 
@@ -46,7 +28,6 @@ random.seed(seed_value)
 import numpy as np
 np.random.seed(seed_value)
 # # 4. Set the `tensorflow` pseudo-random generator at a fixed value
-
 
 tf.compat.v1.set_random_seed(seed_value)
 # 5. Configure a new global `tensorflow` session
@@ -74,13 +55,23 @@ from keras.layers import MaxPooling1D
 from keras.utils import to_categorical
 from os.path import dirname, join as pjoin
 import scipy.io as sio
-# import os
 import scipy.io as spio
 from matplotlib import cm as CM
-#from matplotlib import mlab as ML
-# import numpy as np
 from keras.callbacks import EarlyStopping
 import visualkeras
+from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.layers import Dense, Flatten, Conv2D, Dropout, MaxPooling2D, InputLayer, ZeroPadding2D
+from collections import defaultdict
+import visualkeras
+from PIL import ImageFont
+from matplotlib.lines import Line2D
+from sklearn.model_selection import (TimeSeriesSplit, KFold, ShuffleSplit,LeaveOneGroupOut,
+                                     StratifiedKFold, GroupShuffleSplit,
+                                     GroupKFold, StratifiedShuffleSplit)
+import pickle
+import pandas as pd
+import seaborn as sns
+from tensorflow.keras import backend as K
 
 # model = ...
 windowLength = 200
@@ -95,25 +86,6 @@ trainModel = True # set to true if you want to train the model
 
 pathToInitWeights = r'C:\Users\gib445\OneDrive - Vrije Universiteit Amsterdam\Desktop\New Python Scripts\Init_weights_18Channel_Small\\'
 pathToTrainedWeights = r'C:\Users\gib445\OneDrive - Vrije Universiteit Amsterdam\Desktop\New Python Scripts\trained_weights_18Channel_Small\\'
-# pathToTrainedWeights = "C:/Users/michi/Desktop/SSI_Stroke/Init_weights_18Channel_Small_Trained/"
-# visualkeras.layered_view(model).show() # display using your system viewer
-# visualkeras.layered_view(model, to_file='output.png') # write to disk
-# visualkeras.layered_view(model, to_file='output.png').show() # write and show
-   
-from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Dense, Flatten, Conv2D, Dropout, MaxPooling2D, InputLayer, ZeroPadding2D
-from collections import defaultdict
-import visualkeras
-from PIL import ImageFont
-
-from matplotlib.lines import Line2D
-from sklearn.model_selection import (TimeSeriesSplit, KFold, ShuffleSplit,LeaveOneGroupOut,
-                                     StratifiedKFold, GroupShuffleSplit,
-                                     GroupKFold, StratifiedShuffleSplit)
-import pickle
-import pandas as pd
-import seaborn as sns
-
 
 plt.close('all')
 
@@ -183,68 +155,6 @@ decoder_model.summary()
 ### end of Model ### 200 by 18
 #%%
 
-from tensorflow.keras import backend as K
-
-# # Custom sampling function
-# def sample_latent_features(args):
-#     mean, log_variance = args
-#     epsilon = K.random_normal(shape=K.shape(mean), mean=0., stddev=1.0)
-#     return mean + K.exp(log_variance / 2) * epsilon
-
-# # Define the beta value for the beta-VAE
-# beta = 1.0  # Adjust beta to encourage more disentanglement (1.0 for standard VAE)
-
-# # Encoder part
-# tf.compat.v1.disable_eager_execution()
-# input_data = tf.keras.layers.Input(shape=(epochLength, numberOfColumns))
-# encoder = tf.keras.layers.Conv1D(20, 50, activation='relu')(input_data)  # 20 filters, 50 kernel size
-# encoder = tf.keras.layers.Conv1D(10, 40, activation='relu')(encoder)
-# encoder = tf.keras.layers.Conv1D(2, 30, activation='relu')(encoder)
-# encoder = tf.keras.layers.Flatten()(encoder)
-# encoder = tf.keras.layers.Dense(80)(encoder)
-# distribution_mean = tf.keras.layers.Dense(latentFeatures, name='mean')(encoder)
-# distribution_variance = tf.keras.layers.Dense(latentFeatures, name='log_variance')(encoder)
-# latent_encoding = tf.keras.layers.Lambda(sample_latent_features)([distribution_mean, distribution_variance])
-# encoder_model = tf.keras.Model(input_data, latent_encoding)
-# encoder_model.summary()
-
-# # Decoder part
-# decoder_input = tf.keras.layers.Input(shape=(latentFeatures,))
-# decoder = tf.keras.layers.Dense(80)(decoder_input)
-# decoder = tf.keras.layers.Reshape((1, 80))(decoder)
-# decoder = tf.keras.layers.Conv1DTranspose(2, 30, activation='relu')(decoder)
-# decoder = tf.keras.layers.Conv1DTranspose(10, 40, activation='relu')(decoder)
-# decoder = tf.keras.layers.Conv1DTranspose(20, 50, activation='relu')(decoder)
-# decoder_output = tf.keras.layers.Conv1DTranspose(numberOfColumns, 83)(decoder)  # Adjust filters to match numberOfColumns
-# decoder_output = tf.keras.layers.LeakyReLU(alpha=0.1)(decoder_output)
-# decoder_model = tf.keras.Model(decoder_input, decoder_output)
-# decoder_model.summary()
-
-# # VAE model combining encoder and decoder
-# vae_input = input_data
-# vae_output = decoder_model(encoder_model(vae_input))
-# vae_model = tf.keras.Model(vae_input, vae_output)
-
-# # VAE loss function
-# def vae_loss(input_data, vae_output):
-#     # Reconstruction loss (MSE)
-#     reconstruction_loss = tf.reduce_mean(tf.square(input_data - vae_output))
-    
-#     # KL divergence
-#     kl_loss = -0.5 * tf.reduce_sum(1 + distribution_variance - tf.square(distribution_mean) - tf.exp(distribution_variance), axis=-1)
-    
-#     # Total VAE loss
-#     return reconstruction_loss + beta * tf.reduce_mean(kl_loss)
-
-# # Summary of the VAE model
-# vae_model.summary()
-
-
-
-#%%
-
-
-
 #### getting the weights for initializing stuff
 if Createinitialize:
     decoderWeightsInit = []
@@ -307,13 +217,8 @@ other_data = np.load(path + data)
 y_adapted =  np.load(path + yFile)
 groupsplit = np.load(path + groupFile)
 
-
-###### here Sina excludes the outliers
-
-
 exludefiles = np.loadtxt(r'C:\Users\gib445\OneDrive - Vrije Universiteit Amsterdam\Desktop\New Python Scripts\exclude_files.txt')
 int_array = np.int_(exludefiles)
-
 
 other_data = np.delete(other_data,int_array,axis=0)
 y_adapted = np.delete(y_adapted,int_array,axis=0)
@@ -337,62 +242,7 @@ test_y = y_adapted[test_idx]
 
 train_names=groupsplit[train_idx]
 test_names = groupsplit[test_idx]
-##
-# from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-# import tensorflow as tf
-# import numpy as np
 
-# # Define a function to optimize with hyperparameters
-# def objective(params):
-#     # Unpack the hyperparameters
-#     conv1_filters = int(params['conv1_filters'])
-#     conv1_kernel_size = int(params['conv1_kernel_size'])
-#     conv2_filters = int(params['conv2_filters'])
-#     conv2_kernel_size = int(params['conv2_kernel_size'])
-#     conv3_filters = int(params['conv3_filters'])
-#     conv3_kernel_size = int(params['conv3_kernel_size'])
-#     dense_units = int(params['dense_units'])
-
-#     # Build the model with the given hyperparameters
-#     model = tf.keras.Sequential([
-#         tf.keras.layers.Conv1D(conv1_filters, conv1_kernel_size, activation='relu', input_shape=(windowLength, numberOfColumns)),
-#         tf.keras.layers.Conv1D(conv2_filters, conv2_kernel_size, activation='relu'),
-#         tf.keras.layers.Conv1D(conv3_filters, conv3_kernel_size, activation='relu'),
-#         tf.keras.layers.Flatten(),
-#         tf.keras.layers.Dense(dense_units, activation='relu')
-#     ])
-
-#     model.compile(optimizer='adam', loss='mean_squared_error')  # Adjust the optimizer and loss as needed
-
-#     # Train the model with your training data
-#     history = model.fit(train_data, train_names, epochs=epochLength, batch_size=64, validation_data=(test_data, test_names))
-
-#     # Calculate and return the validation loss
-#     val_loss = history.history['val_loss'][-1]
-    
-#     return {'loss': val_loss, 'status': STATUS_OK}
-
-# # Define the hyperparameter search space
-# space = {
-#     'conv1_filters': hp.quniform('conv1_filters', 16, 128, 16),
-#     'conv1_kernel_size': hp.quniform('conv1_kernel_size', 3, 10, 1),
-#     'conv2_filters': hp.quniform('conv2_filters', 16, 64, 16),
-#     'conv2_kernel_size': hp.quniform('conv2_kernel_size', 3, 8, 1),
-#     'conv3_filters': hp.quniform('conv3_filters', 8, 32, 8),
-#     'conv3_kernel_size': hp.quniform('conv3_kernel_size', 2, 6, 1),
-#     'dense_units': hp.quniform('dense_units', 32, 128, 16)
-# }
-
-# # Run hyperparameter optimization
-# trials = Trials()
-# best = fmin(fn=objective, space=space, algo=tpe.suggest, max_evals=50, trials=trials)  # You can adjust the number of evaluations
-
-# # Print the best hyperparameters
-# print("Best hyperparameters:", best)
-
-
-
-##
 encoded = encoder_model(input_data)
 decoded = decoder_model(encoded)
 autoencoder = tf.keras.models.Model(input_data, decoded)
@@ -560,11 +410,7 @@ if latentFeatures == 3:
     ax1.set_ylabel('Latent feature 2')
     ax1.set_zlabel('Latent feature 3')
 
-
-
 #### Additional validation ######
-
-
 #############################################################################
 ### training & test data  correlation / rmse and nrmse plus visualisation ###
 #############################################################################
@@ -575,12 +421,7 @@ correlation_train = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 Norerror_train = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 Norerrortemp = []
 errortemp = []
-# predictedtrainAll = [0,0,0,0,0,0]
 
-# float_list=[]
-# output_path = "C:/Users/sdd380/surfdrive3/Projects/VAE_Stroke/PythonOutputTrain/"
-# fileformat=".csv"    
-# subject="Trial"
 
 for indx in range(0,len(train_data)):
     tempDimensiontrain = np.expand_dims(train_data[indx,:,:], axis=0) 
@@ -618,11 +459,6 @@ boxplottraindata_nRMSE = [Norerror_train[:,0],Norerror_train[:,1],Norerror_train
 ################################
 ### Repeat for test data ###
 ################################
-# float_list=[]
-# output_path = "C:/Users/sdd380/surfdrive3/Projects/VAE_Stroke/PythonInputTrain/"
-# fileformat=".csv"    
-# subject="Trial"
-
 
 error_test = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 errortemp = []
